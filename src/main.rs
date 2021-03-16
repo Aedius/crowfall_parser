@@ -1,4 +1,5 @@
 mod dps;
+mod heal;
 
 #[macro_use]
 extern crate lazy_static;
@@ -10,12 +11,13 @@ use std::io::BufReader;
 use std::io::prelude::*;
 use std::time::{SystemTime, Duration};
 use dps::{Dps, RE_DPS, parse_dps};
+use heal::{Heal, RE_HEAL, parse_heal};
 
 
 fn main() -> io::Result<()> {
     let path = "C:\\Users\\Admin\\AppData\\LocalLow\\Art+Craft\\Crowfall\\CombatLogs";
 
-    let month_ago = SystemTime::now().checked_sub(Duration::new(30 * 24 * 60 * 60, 0)).unwrap();
+    let month_ago = SystemTime::now().checked_sub(Duration::new(3 * 30 * 24 * 60 * 60, 0)).unwrap();
 
     let re_event = Regex::new(r"Event=\[(.*)\] ").unwrap();
 
@@ -24,7 +26,8 @@ fn main() -> io::Result<()> {
         .collect::<Result<Vec<_>, io::Error>>()?;
 
     let mut data = Data {
-        dps: Default::default()
+        dps: Default::default(),
+        heal: Default::default(),
     };
 
     for entry in entries {
@@ -60,16 +63,14 @@ lazy_static! {
     static ref RE_SELF_RESOURCE: Regex = Regex::new("^Your (.+) (restored|drained) You for ([0-9]+) (.+).$").unwrap();
     static ref RE_RESOURCE: Regex = Regex::new("^(.+) (restored|drained) You for ([0-9]+) (.+).$").unwrap();
 
-    static ref RE_SELF_HEAL: Regex = Regex::new("^Your (.+) healed You for ([0-9]+)( \\(([0-9]+) absorbed\\))? hit points( \\(Critical\\))?.$").unwrap();
-    static ref RE_HEAL_RECEIVED: Regex = Regex::new("^(.+) healed You for ([0-9]+)( \\(([0-9]+) absorbed\\))? hit points( \\(Critical\\))?.$").unwrap();
-    static ref RE_HEAL_DONE: Regex = Regex::new("^Your (.+) healed (.+) for ([0-9]+)( \\(([0-9]+) absorbed\\))?( hit points)?( \\(Critical\\))?.$").unwrap();
 
 }
 
 
 
 struct Data {
-    dps: Vec<Dps>
+    dps: Vec<Dps>,
+    heal: Vec<Heal>,
 }
 
 impl Data {
@@ -77,24 +78,21 @@ impl Data {
         if RE_FOOD.is_match(row) {
             return true;
         }
+        if RE_RESOURCE.is_match(row) {
+            return true;
+        }
+
+        if RE_SELF_RESOURCE.is_match(row) {
+            return true;
+        }
         if RE_DPS.is_match(row) {
             let dps = parse_dps(row).unwrap();
             self.dps.push(dps);
             return true;
         }
-        if RE_SELF_RESOURCE.is_match(row) {
-            return true;
-        }
-        if RE_RESOURCE.is_match(row) {
-            return true;
-        }
-        if RE_SELF_HEAL.is_match(row) {
-            return true;
-        }
-        if RE_HEAL_RECEIVED.is_match(row) {
-            return true;
-        }
-        if RE_HEAL_DONE.is_match(row) {
+        if RE_HEAL.is_match(row) {
+            let heal = parse_heal(row).unwrap();
+            self.heal.push(heal);
             return true;
         }
 
