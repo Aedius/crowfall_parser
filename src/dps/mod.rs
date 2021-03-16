@@ -1,11 +1,14 @@
 use regex::Regex;
 
+use chrono::prelude::*;
+
 lazy_static! {
-    pub static ref RE_DPS: Regex = Regex::new("^([^ ]+) (.+)? ?hit (.+) for ([0-9]+) ?(\\(([0-9]+) absorbed\\))? ?(([^\\(]+) damage)? ?(\\(Critical\\))?.$").unwrap();
+    pub static ref RE_DPS: Regex = Regex::new("^([^ ]+) ?(.+)? hit (.+) for ([0-9]+) ?(\\(([0-9]+) absorbed\\))? ?(([^\\(]+) damage)? ?(\\(Critical\\))?.$").unwrap();
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Dps {
+    pub date: DateTime<FixedOffset>,
     pub emitter: String,
     pub spell: String,
     pub receiver: String,
@@ -15,9 +18,8 @@ pub struct Dps {
     pub critical: bool,
 }
 
-pub fn parse_dps(row: &str) -> Option<Dps> {
+pub fn parse_dps(row: &str, dt: DateTime<FixedOffset>) -> Option<Dps> {
     for cap in RE_DPS.captures_iter(row) {
-
         let kind = match cap.get(8) {
             Some(_) => {
                 cap[8].to_string()
@@ -55,6 +57,7 @@ pub fn parse_dps(row: &str) -> Option<Dps> {
         };
 
         return Some(Dps {
+            date: dt,
             emitter: cap[1].to_string(),
             spell,
             receiver: cap[3].to_string(),
@@ -76,10 +79,12 @@ mod tests {
     #[test]
     fn assert_dps_simple() {
         let tt = "Your Freezing Storm hit Major Thrall of Dark for 101 Ice damage.";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Your".to_string(),
                 spell: "Freezing Storm".to_string(),
                 receiver: "Major Thrall of Dark".to_string(),
@@ -94,10 +99,12 @@ mod tests {
     #[test]
     fn assert_dps_full_absorbed() {
         let tt = "Your Shatter Storm hit RexAlchy for 0 (51 absorbed).";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Your".to_string(),
                 spell: "Shatter Storm".to_string(),
                 receiver: "RexAlchy".to_string(),
@@ -112,10 +119,12 @@ mod tests {
     #[test]
     fn assert_dps_partially_absorbed() {
         let tt = "Your Spiral Cast hit Thrall Soul for 272 (12 absorbed) Ice damage.";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Your".to_string(),
                 spell: "Spiral Cast".to_string(),
                 receiver: "Thrall Soul".to_string(),
@@ -130,10 +139,12 @@ mod tests {
     #[test]
     fn assert_dps_critical() {
         let tt = "Your Coalesce Forestry hit Urgu Myrmidon Chief for 311 Nature damage (Critical).";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Your".to_string(),
                 spell: "Coalesce Forestry".to_string(),
                 receiver: "Urgu Myrmidon Chief".to_string(),
@@ -148,10 +159,12 @@ mod tests {
     #[test]
     fn assert_dps_partially_absorbed_critical() {
         let tt = "Your Retaliate hit UDeadPRO for 292 (233 absorbed) Nature damage (Critical).";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Your".to_string(),
                 spell: "Retaliate".to_string(),
                 receiver: "UDeadPRO".to_string(),
@@ -166,10 +179,12 @@ mod tests {
     #[test]
     fn assert_dps_none() {
         let tt = "Your Holy Symbol hit Zankara for 0 (Critical).";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Your".to_string(),
                 spell: "Holy Symbol".to_string(),
                 receiver: "Zankara".to_string(),
@@ -184,10 +199,12 @@ mod tests {
     #[test]
     fn assert_hit_none_critical() {
         let tt = "Gamako Fervor hit You for 0 (Critical).";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Gamako".to_string(),
                 spell: "Fervor".to_string(),
                 receiver: "You".to_string(),
@@ -202,10 +219,12 @@ mod tests {
     #[test]
     fn assert_fire_dps() {
         let tt = "Sun Elf Confessor Fire Aura hit You for 26 Fire damage.";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Sun".to_string(),
                 spell: "Elf Confessor Fire Aura".to_string(),
                 receiver: "You".to_string(),
@@ -220,10 +239,12 @@ mod tests {
     #[test]
     fn assert_no_spell() {
         let tt = "Swoop hit You for 46 Piercing damage.";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Swoop".to_string(),
                 spell: "".to_string(),
                 receiver: "You".to_string(),
@@ -238,10 +259,12 @@ mod tests {
     #[test]
     fn assert_partially_absorbed() {
         let tt = "Urgu Myrmidon Chief Slash hit You for 206 (198 absorbed) Crushing damage.";
+        let dt = DateTime::from(Utc::now());
         assert!(RE_DPS.is_match(tt));
         assert_eq!(
-            parse_dps(tt).unwrap(),
+            parse_dps(tt, dt).unwrap(),
             Dps {
+                date: dt,
                 emitter: "Urgu".to_string(),
                 spell: "Myrmidon Chief Slash".to_string(),
                 receiver: "You".to_string(),
