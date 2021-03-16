@@ -1,14 +1,14 @@
 use regex::Regex;
 
 lazy_static! {
-    pub static ref RE_DPS: Regex = Regex::new("^Your (.+) hit (.+) for ([0-9]+) ?(\\(([0-9]+) absorbed\\))? ?(([^\\(]+) damage)? ?(\\(Critical\\))?.$").unwrap();
-
+    pub static ref RE_DPS: Regex = Regex::new("^([^ ]+) (.+)? ?hit (.+) for ([0-9]+) ?(\\(([0-9]+) absorbed\\))? ?(([^\\(]+) damage)? ?(\\(Critical\\))?.$").unwrap();
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Dps {
+    pub emitter: String,
     pub spell: String,
-    pub target: String,
+    pub receiver: String,
     pub damage: u16,
     pub kind: String,
     pub absorbed: u16,
@@ -17,27 +17,26 @@ pub struct Dps {
 
 pub fn parse_dps(row: &str) -> Option<Dps> {
     for cap in RE_DPS.captures_iter(row) {
-        println!("{:?}", &cap);
 
-        let kind = match cap.get(7) {
+        let kind = match cap.get(8) {
             Some(_) => {
-                cap[7].to_string()
+                cap[8].to_string()
             }
             None => {
                 "".to_string()
             }
         };
 
-        let absorbed = match cap.get(5) {
+        let absorbed = match cap.get(6) {
             Some(_) => {
-                cap[5].parse::<u16>().unwrap()
+                cap[6].parse::<u16>().unwrap()
             }
             None => {
                 0
             }
         };
 
-        let critical = match cap.get(8) {
+        let critical = match cap.get(9) {
             Some(_) => {
                 true
             }
@@ -46,10 +45,20 @@ pub fn parse_dps(row: &str) -> Option<Dps> {
             }
         };
 
+        let spell = match cap.get(2) {
+            Some(_) => {
+                cap[2].to_string()
+            }
+            None => {
+                "".to_string()
+            }
+        };
+
         return Some(Dps {
-            spell: cap[1].to_string(),
-            target: cap[2].to_string(),
-            damage: cap[3].parse::<u16>().unwrap(),
+            emitter: cap[1].to_string(),
+            spell,
+            receiver: cap[3].to_string(),
+            damage: cap[4].parse::<u16>().unwrap(),
             kind,
             absorbed,
             critical,
@@ -67,12 +76,13 @@ mod tests {
     #[test]
     fn assert_dps_simple() {
         let tt = "Your Freezing Storm hit Major Thrall of Dark for 101 Ice damage.";
-        assert!(RE_DPS.is_match("Your Freezing Storm hit Major Thrall of Dark for 101 Ice damage."));
+        assert!(RE_DPS.is_match(tt));
         assert_eq!(
             parse_dps(tt).unwrap(),
             Dps {
+                emitter: "Your".to_string(),
                 spell: "Freezing Storm".to_string(),
-                target: "Major Thrall of Dark".to_string(),
+                receiver: "Major Thrall of Dark".to_string(),
                 damage: 101,
                 kind: "Ice".to_string(),
                 absorbed: 0,
@@ -88,8 +98,9 @@ mod tests {
         assert_eq!(
             parse_dps(tt).unwrap(),
             Dps {
+                emitter: "Your".to_string(),
                 spell: "Shatter Storm".to_string(),
-                target: "RexAlchy".to_string(),
+                receiver: "RexAlchy".to_string(),
                 damage: 0,
                 kind: "".to_string(),
                 absorbed: 51,
@@ -105,8 +116,9 @@ mod tests {
         assert_eq!(
             parse_dps(tt).unwrap(),
             Dps {
+                emitter: "Your".to_string(),
                 spell: "Spiral Cast".to_string(),
-                target: "Thrall Soul".to_string(),
+                receiver: "Thrall Soul".to_string(),
                 damage: 272,
                 kind: "Ice".to_string(),
                 absorbed: 12,
@@ -122,8 +134,9 @@ mod tests {
         assert_eq!(
             parse_dps(tt).unwrap(),
             Dps {
+                emitter: "Your".to_string(),
                 spell: "Coalesce Forestry".to_string(),
-                target: "Urgu Myrmidon Chief".to_string(),
+                receiver: "Urgu Myrmidon Chief".to_string(),
                 damage: 311,
                 kind: "Nature".to_string(),
                 absorbed: 0,
@@ -139,8 +152,9 @@ mod tests {
         assert_eq!(
             parse_dps(tt).unwrap(),
             Dps {
+                emitter: "Your".to_string(),
                 spell: "Retaliate".to_string(),
-                target: "UDeadPRO".to_string(),
+                receiver: "UDeadPRO".to_string(),
                 damage: 292,
                 kind: "Nature".to_string(),
                 absorbed: 233,
@@ -156,12 +170,85 @@ mod tests {
         assert_eq!(
             parse_dps(tt).unwrap(),
             Dps {
+                emitter: "Your".to_string(),
                 spell: "Holy Symbol".to_string(),
-                target: "Zankara".to_string(),
+                receiver: "Zankara".to_string(),
                 damage: 0,
                 kind: "".to_string(),
                 absorbed: 0,
                 critical: true,
+            }
+        )
+    }
+
+    #[test]
+    fn assert_hit_none_critical() {
+        let tt = "Gamako Fervor hit You for 0 (Critical).";
+        assert!(RE_DPS.is_match(tt));
+        assert_eq!(
+            parse_dps(tt).unwrap(),
+            Dps {
+                emitter: "Gamako".to_string(),
+                spell: "Fervor".to_string(),
+                receiver: "You".to_string(),
+                damage: 0,
+                kind: "".to_string(),
+                absorbed: 0,
+                critical: true,
+            }
+        )
+    }
+
+    #[test]
+    fn assert_fire_dps() {
+        let tt = "Sun Elf Confessor Fire Aura hit You for 26 Fire damage.";
+        assert!(RE_DPS.is_match(tt));
+        assert_eq!(
+            parse_dps(tt).unwrap(),
+            Dps {
+                emitter: "Sun".to_string(),
+                spell: "Elf Confessor Fire Aura".to_string(),
+                receiver: "You".to_string(),
+                damage: 26,
+                kind: "Fire".to_string(),
+                absorbed: 0,
+                critical: false,
+            }
+        )
+    }
+
+    #[test]
+    fn assert_no_spell() {
+        let tt = "Swoop hit You for 46 Piercing damage.";
+        assert!(RE_DPS.is_match(tt));
+        assert_eq!(
+            parse_dps(tt).unwrap(),
+            Dps {
+                emitter: "Swoop".to_string(),
+                spell: "".to_string(),
+                receiver: "You".to_string(),
+                damage: 46,
+                kind: "Piercing".to_string(),
+                absorbed: 0,
+                critical: false,
+            }
+        )
+    }
+
+    #[test]
+    fn assert_partially_absorbed() {
+        let tt = "Urgu Myrmidon Chief Slash hit You for 206 (198 absorbed) Crushing damage.";
+        assert!(RE_DPS.is_match(tt));
+        assert_eq!(
+            parse_dps(tt).unwrap(),
+            Dps {
+                emitter: "Urgu".to_string(),
+                spell: "Myrmidon Chief Slash".to_string(),
+                receiver: "You".to_string(),
+                damage: 206,
+                kind: "Crushing".to_string(),
+                absorbed: 198,
+                critical: false,
             }
         )
     }

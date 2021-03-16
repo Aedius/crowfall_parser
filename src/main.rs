@@ -15,7 +15,7 @@ use dps::{Dps, RE_DPS, parse_dps};
 fn main() -> io::Result<()> {
     let path = "C:\\Users\\Admin\\AppData\\LocalLow\\Art+Craft\\Crowfall\\CombatLogs";
 
-    let month_ago = SystemTime::now().checked_sub(Duration::new(4 * 30 * 24 * 60 * 60, 0)).unwrap();
+    let month_ago = SystemTime::now().checked_sub(Duration::new(30 * 24 * 60 * 60, 0)).unwrap();
 
     let re_event = Regex::new(r"Event=\[(.*)\] ").unwrap();
 
@@ -23,7 +23,9 @@ fn main() -> io::Result<()> {
         .map(|res| res.map(|e| e.path()))
         .collect::<Result<Vec<_>, io::Error>>()?;
 
-    let mut data = Data { dps: Default::default() };
+    let mut data = Data {
+        dps: Default::default()
+    };
 
     for entry in entries {
         if entry.is_file() {
@@ -55,8 +57,6 @@ fn main() -> io::Result<()> {
 lazy_static! {
     static ref RE_FOOD: Regex = Regex::new("^Your meal restored You for ([0-9]+) food.$").unwrap();
 
-    static ref RE_DAMAGE: Regex = Regex::new("^(.+) hit You for (0|([0-9]+) (.+))( ?\\(([0-9]+) absorbed\\)|damage)?( \\(Critical\\))?.$").unwrap();
-
     static ref RE_SELF_RESOURCE: Regex = Regex::new("^Your (.+) (restored|drained) You for ([0-9]+) (.+).$").unwrap();
     static ref RE_RESOURCE: Regex = Regex::new("^(.+) (restored|drained) You for ([0-9]+) (.+).$").unwrap();
 
@@ -78,12 +78,8 @@ impl Data {
             return true;
         }
         if RE_DPS.is_match(row) {
-            println!("{:?}", row);
             let dps = parse_dps(row).unwrap();
             self.dps.push(dps);
-            return true;
-        }
-        if RE_DAMAGE.is_match(row) {
             return true;
         }
         if RE_SELF_RESOURCE.is_match(row) {
