@@ -1,62 +1,48 @@
 mod dps;
 mod heal;
 
+
+use wasm_bindgen::prelude::*;
+
 #[macro_use]
 extern crate lazy_static;
 
 use regex::Regex;
-use std::{fs, io};
-use std::fs::{File};
-use std::io::BufReader;
 use std::io::prelude::*;
-use std::time::{SystemTime, Duration};
 use dps::{Dps, RE_DPS, parse_dps};
 use heal::{Heal, RE_HEAL, parse_heal};
-use chrono::prelude::*;
+use chrono::prelude::{DateTime, FixedOffset};
 
 
-fn main() -> io::Result<()> {
-    let path = "C:\\Users\\Admin\\AppData\\LocalLow\\Art+Craft\\Crowfall\\CombatLogs";
-
-    let month_ago = SystemTime::now().checked_sub(Duration::new(3 * 30 * 24 * 60 * 60, 0)).unwrap();
+#[wasm_bindgen]
+pub fn greet(contents: &str) -> String {
 
     let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\] ").unwrap();
-
-    let entries = fs::read_dir(path)?
-        .map(|res| res.map(|e| e.path()))
-        .collect::<Result<Vec<_>, io::Error>>()?;
 
     let mut data = Data {
         dps: Default::default(),
         heal: Default::default(),
     };
 
-    for entry in entries {
-        if entry.is_file() {
-            let file = File::open(entry.as_path())?;
+    let mut nb = 0;
 
-            if file.metadata()?.created()? > month_ago {
-                let mut buf_reader = BufReader::new(file);
-                let mut contents = String::new();
-                buf_reader.read_to_string(&mut contents)?;
+    let lines = contents.lines();
 
-                let lines = contents.lines();
+    for line in lines {
+        for cap in re_event.captures_iter(line) {
+            let d = DateTime::parse_from_rfc3339(&cap[1]).unwrap();
 
-                for line in lines {
-                    for cap in re_event.captures_iter(line) {
-                        let d = DateTime::parse_from_rfc3339(&cap[1]).unwrap();
-
-                        if !data.parse_row(&cap[2], d) {
-                            println!("cannot parse : {:?}", &cap[2]);
-                            panic!()
-                        }
-                    }
-                }
+            if !data.parse_row(&cap[2], d) {
+                println!("cannot parse : {:?}", &cap[2]);
+                panic!()
             }
+            nb = nb +1;
         }
     }
 
-    Ok(())
+    return format!("total : {:?} ({} {})", nb, data.dps.len(), data.heal.len());
+
+
 }
 
 
@@ -78,14 +64,17 @@ struct Data {
 impl Data {
     fn parse_row(&mut self, row: &str, dt: DateTime<FixedOffset>) -> bool {
         if RE_FOOD.is_match(row) {
+            //TODO
             return true;
         }
 
         if RE_RESOURCE.is_match(row) {
+            //TODO
             return true;
         }
 
         if RE_SELF_RESOURCE.is_match(row) {
+            //TODO
             return true;
         }
 
