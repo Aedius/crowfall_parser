@@ -1,23 +1,52 @@
 <html>
 <head>
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+
+    <!-- https://apexcharts.com/docs/update-charts-from-json-api-ajax/ -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+    <style>
+        #container .quarter{
+        float: left;
+            width:25%;
+        }
+
+    </style>
 </head>
 <body>
-<!-- The `multiple` attribute lets users select multiple files. -->
-<input type="file" id="file-selector" multiple>
+<input type="file" id="file-selector">
 
 <script src="loader.js"></script>
-
 <script type="module">
 
     // https://rustwasm.github.io/wasm-bindgen/examples/without-a-bundler.html
-    import init, { greet } from './pkg/crowfall_parser.js';
+    import init, { parse } from './pkg/crowfall_parser.js';
     async function run() {
         await init();
-        window.greet = greet;
+        window.parse = parse;
     }
     run();
 </script>
+
+<div id="container">
+    <div class="quarter">
+        <h2>Emit by Kind</h2>
+        <div id="chart_emit_by_kind"></div>
+    </div>
+    <div class="quarter">
+        <h2>Received by Kind</h2>
+        <div id="chart_received_by_kind"></div>
+    </div>
+    <div class="quarter">
+        <h2>Emit by Opponent</h2>
+        <div id="chart_emit_by_enemy"></div>
+    </div>
+    <div class="quarter">
+        <h2>Received by Opponent</h2>
+        <div id="chart_received_by_enemy"></div>
+    </div>
+
+</div>
 
 </body>
 

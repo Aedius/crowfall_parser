@@ -10,35 +10,23 @@ use regex::Regex;
 use dps::*;
 use heal::*;
 use chrono::prelude::{DateTime, FixedOffset};
-use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
 struct Data {
     pub dps: Vec<Dps>,
     pub heal: Vec<Heal>,
 }
 
-#[wasm_bindgen]
+
+#[derive(Serialize, Deserialize)]
 pub struct ExportedData {
-    dps_stats: ExportedDpsStats
-}
-
-#[wasm_bindgen]
-struct ExportedDpsStats {
-     received_by_kind: Vec<Stat>,
-     emit_by_kind: Vec<Stat>,
-     received_by_enemy: Vec<Stat>,
-     emit_by_enemy: Vec<Stat>,
-}
-
-#[wasm_bindgen]
-struct Stat {
-     name: String,
-     value: u16,
+    pub dps_stats: DpsStats,
+    pub errors : Vec<String>,
 }
 
 
 #[wasm_bindgen]
-pub fn parse(contents: &str) -> ExportedData {
+pub fn parse(contents: &str) -> JsValue {
     let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\] ").unwrap();
 
     let mut data = Data {
@@ -49,14 +37,14 @@ pub fn parse(contents: &str) -> ExportedData {
     let mut nb = 0;
 
     let lines = contents.lines();
+    let mut errors = vec![];
 
     for line in lines {
         for cap in re_event.captures_iter(line) {
             let d = DateTime::parse_from_rfc3339(&cap[1]).unwrap();
 
             if !data.parse_row(&cap[2], d) {
-                println!("cannot parse : {:?}", &cap[2]);
-                panic!()
+                errors.push(cap[2].to_string());
             }
             nb = nb + 1;
         }
@@ -64,14 +52,11 @@ pub fn parse(contents: &str) -> ExportedData {
 
     let dps_stats = stats_dps(data.dps);
 
-    return ExportedData {
-        dps_stats: ExportedDpsStats {
-            received_by_kind: to_vec_stat(dps_stats.received_by_kind),
-            emit_by_kind: to_vec_stat(dps_stats.emit_by_kind),
-            received_by_enemy: to_vec_stat(dps_stats.received_by_enemy),
-            emit_by_enemy: to_vec_stat(dps_stats.emit_by_enemy),
-        }
+    let to_export = ExportedData {
+        dps_stats,
+        errors
     };
+    JsValue::from_serde(&to_export).unwrap()
 }
 
 
@@ -119,18 +104,4 @@ impl Data {
         println!("{:?}", row);
         return false;
     }
-}
-
-
-fn to_vec_stat(hash: HashMap<String, u16>) -> Vec<Stat> {
-    let mut vec = vec![];
-
-    for (k, v) in hash.into_iter() {
-        vec.push(Stat {
-            name: k,
-            value: v,
-        })
-    }
-
-    vec
 }

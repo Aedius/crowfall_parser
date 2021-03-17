@@ -2,6 +2,7 @@ use regex::Regex;
 
 use chrono::prelude::*;
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
 const SELF_EMITTER: &str = "Your";
 const SELF_RECEIVER: &str = "You";
@@ -282,6 +283,7 @@ mod parse_tests {
 }
 
 #[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct DpsStats {
     pub received_by_kind: HashMap<String, u16>,
     pub emit_by_kind: HashMap<String, u16>,
