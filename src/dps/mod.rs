@@ -1,6 +1,10 @@
 use regex::Regex;
 
 use chrono::prelude::*;
+use std::collections::HashMap;
+
+const SELF_EMITTER: &str = "Your";
+const SELF_RECEIVER: &str = "You";
 
 lazy_static! {
     pub static ref RE_DPS: Regex = Regex::new("^([^ ]+) ?(.+)? hit (.+) for ([0-9]+) ?(\\(([0-9]+) absorbed\\))? ?(([^\\(]+) damage)? ?(\\(Critical\\))?.$").unwrap();
@@ -72,7 +76,7 @@ pub fn parse_dps(row: &str, dt: DateTime<FixedOffset>) -> Option<Dps> {
 }
 
 #[cfg(test)]
-mod tests {
+mod parse_tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
@@ -273,6 +277,334 @@ mod tests {
                 absorbed: 198,
                 critical: false,
             }
+        )
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct DpsStats {
+    pub received_by_kind: HashMap<String, u16>,
+    pub emit_by_kind: HashMap<String, u16>,
+    pub received_by_enemy: HashMap<String, u16>,
+    pub emit_by_enemy: HashMap<String, u16>,
+}
+
+pub fn stats_dps(list: Vec<Dps>) -> DpsStats {
+    let mut received_by_kind = HashMap::new();
+    let mut emit_by_kind = HashMap::new();
+    let mut received_by_enemy = HashMap::new();
+    let mut emit_by_enemy = HashMap::new();
+
+    for dps in list.iter() {
+        if dps.kind != "" {
+            if dps.receiver == SELF_RECEIVER {
+                let rec = received_by_kind.entry(dps.kind.to_string()).or_insert(0);
+                *rec += dps.damage + dps.absorbed;
+            }
+
+            if dps.emitter == SELF_EMITTER {
+                let emit = emit_by_kind.entry(dps.kind.to_string()).or_insert(0);
+                *emit += dps.damage + dps.absorbed;
+            }
+        }
+
+        if dps.receiver == SELF_RECEIVER {
+            let rec = received_by_enemy.entry(dps.emitter.to_string()).or_insert(0);
+            *rec += dps.damage + dps.absorbed;
+        }
+
+        if dps.emitter == SELF_EMITTER {
+            let emit = emit_by_enemy.entry(dps.receiver.to_string()).or_insert(0);
+            *emit += dps.damage + dps.absorbed;
+        }
+    }
+
+    DpsStats {
+        received_by_kind,
+        emit_by_kind,
+        received_by_enemy,
+        emit_by_enemy,
+    }
+}
+
+#[cfg(test)]
+mod stats_tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn assert_received_by_kind_empty() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "SomeoneElse".to_string(),
+                damage: 100,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 100,
+                kind: "".to_string(),
+                absorbed: 100,
+                critical: false,
+            }
+        ];
+        assert_eq!(
+            stats_dps(list).received_by_kind,
+            HashMap::new()
+        )
+    }
+
+    #[test]
+    fn assert_received_by_kind_sum() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 1000,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 100,
+                kind: "Ice".to_string(),
+                absorbed: 10,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 123,
+                kind: "Fire".to_string(),
+                absorbed: 2000,
+                critical: false,
+            }
+        ];
+
+        let mut res: HashMap<String, u16> = HashMap::new();
+        res.insert("Ice".to_string(), 1210);
+        res.insert("Fire".to_string(), 2123);
+        assert_eq!(
+            stats_dps(list).received_by_kind,
+            res
+        )
+    }
+
+    #[test]
+    fn assert_emit_by_kind_empty() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "SomeoneElse".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "John".to_string(),
+                damage: 100,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "You".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "John".to_string(),
+                damage: 100,
+                kind: "".to_string(),
+                absorbed: 100,
+                critical: false,
+            }
+        ];
+        assert_eq!(
+            stats_dps(list).emit_by_kind,
+            HashMap::new()
+        )
+    }
+
+    #[test]
+    fn assert_emit_by_kind_sum() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "SomeoneElse".to_string(),
+                damage: 10,
+                kind: "Ice".to_string(),
+                absorbed: 200,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "SomeoneElse".to_string(),
+                damage: 600,
+                kind: "Fire".to_string(),
+                absorbed: 0,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "SomeoneElse".to_string(),
+                damage: 900,
+                kind: "Fire".to_string(),
+                absorbed: 25,
+                critical: false,
+            }
+        ];
+
+        let mut res: HashMap<String, u16> = HashMap::new();
+        res.insert("Ice".to_string(), 210);
+        res.insert("Fire".to_string(), 1525);
+        assert_eq!(
+            stats_dps(list).emit_by_kind,
+            res
+        )
+    }
+
+    #[test]
+    fn assert_received_by_enemy_empty() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "SomeoneElse".to_string(),
+                damage: 100,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+        ];
+        assert_eq!(
+            stats_dps(list).received_by_enemy,
+            HashMap::new()
+        )
+    }
+
+    #[test]
+    fn assert_received_by_enemy_sum() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 123,
+                kind: "Ice".to_string(),
+                absorbed: 0,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 1000,
+                kind: "Ice".to_string(),
+                absorbed: 5,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Lennon".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 3500,
+                kind: "Fire".to_string(),
+                absorbed: 0,
+                critical: false,
+            }
+        ];
+
+        let mut res: HashMap<String, u16> = HashMap::new();
+        res.insert("John".to_string(), 1128);
+        res.insert("Lennon".to_string(), 3500);
+        assert_eq!(
+            stats_dps(list).received_by_enemy,
+            res
+        )
+    }
+
+    #[test]
+    fn assert_emit_by_enemy_empty() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "SomeoneElse".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                damage: 100,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+        ];
+        assert_eq!(
+            stats_dps(list).emit_by_enemy,
+            HashMap::new()
+        )
+    }
+
+    #[test]
+    fn assert_emit_by_enemy_sum() {
+        let list = vec![
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "Paul".to_string(),
+                damage: 800,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "Jacques".to_string(),
+                damage: 352,
+                kind: "Ice".to_string(),
+                absorbed: 48,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::from(Utc::now()),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "Paul".to_string(),
+                damage: 88,
+                kind: "Fire".to_string(),
+                absorbed: 1000,
+                critical: false,
+            }
+        ];
+
+        let mut res: HashMap<String, u16> = HashMap::new();
+        res.insert("Jacques".to_string(), 400);
+        res.insert("Paul".to_string(), 1988);
+        assert_eq!(
+            stats_dps(list).emit_by_enemy,
+            res
         )
     }
 }

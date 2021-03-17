@@ -1,22 +1,44 @@
 mod dps;
 mod heal;
 
-
 use wasm_bindgen::prelude::*;
 
 #[macro_use]
 extern crate lazy_static;
 
 use regex::Regex;
-use std::io::prelude::*;
-use dps::{Dps, RE_DPS, parse_dps};
-use heal::{Heal, RE_HEAL, parse_heal};
+use dps::*;
+use heal::*;
 use chrono::prelude::{DateTime, FixedOffset};
+use std::collections::HashMap;
+
+struct Data {
+    pub dps: Vec<Dps>,
+    pub heal: Vec<Heal>,
+}
+
+#[wasm_bindgen]
+pub struct ExportedData {
+    dps_stats: ExportedDpsStats
+}
+
+#[wasm_bindgen]
+struct ExportedDpsStats {
+     received_by_kind: Vec<Stat>,
+     emit_by_kind: Vec<Stat>,
+     received_by_enemy: Vec<Stat>,
+     emit_by_enemy: Vec<Stat>,
+}
+
+#[wasm_bindgen]
+struct Stat {
+     name: String,
+     value: u16,
+}
 
 
 #[wasm_bindgen]
-pub fn greet(contents: &str) -> String {
-
+pub fn parse(contents: &str) -> ExportedData {
     let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\] ").unwrap();
 
     let mut data = Data {
@@ -36,14 +58,23 @@ pub fn greet(contents: &str) -> String {
                 println!("cannot parse : {:?}", &cap[2]);
                 panic!()
             }
-            nb = nb +1;
+            nb = nb + 1;
         }
     }
 
-    return format!("total : {:?} ({} {})", nb, data.dps.len(), data.heal.len());
+    let dps_stats = stats_dps(data.dps);
 
-
+    return ExportedData {
+        dps_stats: ExportedDpsStats {
+            received_by_kind: to_vec_stat(dps_stats.received_by_kind),
+            emit_by_kind: to_vec_stat(dps_stats.emit_by_kind),
+            received_by_enemy: to_vec_stat(dps_stats.received_by_enemy),
+            emit_by_enemy: to_vec_stat(dps_stats.emit_by_enemy),
+        }
+    };
 }
+
+
 
 
 lazy_static! {
@@ -55,11 +86,6 @@ lazy_static! {
 }
 
 
-
-struct Data {
-    dps: Vec<Dps>,
-    heal: Vec<Heal>,
-}
 
 impl Data {
     fn parse_row(&mut self, row: &str, dt: DateTime<FixedOffset>) -> bool {
@@ -93,4 +119,18 @@ impl Data {
         println!("{:?}", row);
         return false;
     }
+}
+
+
+fn to_vec_stat(hash: HashMap<String, u16>) -> Vec<Stat> {
+    let mut vec = vec![];
+
+    for (k, v) in hash.into_iter() {
+        vec.push(Stat {
+            name: k,
+            value: v,
+        })
+    }
+
+    vec
 }
