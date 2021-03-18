@@ -1,0 +1,4 @@
+.github/*
+.dependabot/*
+target
+static/pkg
