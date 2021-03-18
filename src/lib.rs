@@ -1,5 +1,6 @@
 mod dps;
 mod heal;
+mod split;
 
 use wasm_bindgen::prelude::*;
 
@@ -11,6 +12,7 @@ use dps::*;
 use heal::*;
 use chrono::prelude::{DateTime, FixedOffset};
 use serde::{Serialize, Deserialize};
+use crate::split::split_in_fight;
 
 struct Data {
     pub dps: Vec<Dps>,
@@ -24,15 +26,16 @@ pub struct ExportedData {
     pub errors : Vec<String>,
 }
 
-
 #[wasm_bindgen]
-pub fn parse(contents: &str) -> JsValue {
+pub fn parse(contents: &str, time_between: i64) -> JsValue {
     let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\] ").unwrap();
 
     let mut data = Data {
         dps: Default::default(),
         heal: Default::default(),
     };
+
+    let mut date_list = vec![];
 
     let mut nb = 0;
 
@@ -43,12 +46,16 @@ pub fn parse(contents: &str) -> JsValue {
         for cap in re_event.captures_iter(line) {
             let d = DateTime::parse_from_rfc3339(&cap[1]).unwrap();
 
-            if !data.parse_row(&cap[2], d) {
+            if data.parse_row(&cap[2], d) {
+                date_list.push(d);
+            }else{
                 errors.push(cap[2].to_string());
             }
             nb = nb + 1;
         }
     }
+
+    let fight = split_in_fight(date_list, time_between);
 
     let dps_stats = stats_dps(data.dps);
 
@@ -58,7 +65,6 @@ pub fn parse(contents: &str) -> JsValue {
     };
     JsValue::from_serde(&to_export).unwrap()
 }
-
 
 
 

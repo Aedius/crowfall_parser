@@ -1,6 +1,7 @@
 
 
 const fileSelector = document.getElementById('file-selector');
+const timeBetween = document.getElementById('time-between');
 
 fileSelector.addEventListener('change', (event) => {
 
@@ -19,7 +20,7 @@ function readFile(file) {
 
     reader.addEventListener('load', (event) => {
 
-        let res = window.parse( event.target.result)
+        let res = window.parse( event.target.result, timeBetween.value)
         console.log( res);
         if (res.errors.length> 0){
             alert("cannot parse the following lines : \n" + res.errors.join("\n"))
