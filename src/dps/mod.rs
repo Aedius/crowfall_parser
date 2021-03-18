@@ -291,13 +291,18 @@ pub struct DpsStats {
     pub emit_by_enemy: HashMap<String, u16>,
 }
 
-pub fn stats_dps(list: Vec<Dps>) -> DpsStats {
+pub fn stats_dps(list: &Vec<Dps>, start : Option<i64>, end : Option<i64>) -> DpsStats {
     let mut received_by_kind = HashMap::new();
     let mut emit_by_kind = HashMap::new();
     let mut received_by_enemy = HashMap::new();
     let mut emit_by_enemy = HashMap::new();
 
     for dps in list.iter() {
+
+        if dps.date.timestamp() < start.unwrap_or(0) ||  dps.date.timestamp() > end.unwrap_or(29679085651 ){
+            continue
+        }
+
         if dps.kind != "" {
             if dps.receiver == SELF_RECEIVER {
                 let rec = received_by_kind.entry(dps.kind.to_string()).or_insert(0);
@@ -359,7 +364,7 @@ mod stats_tests {
             }
         ];
         assert_eq!(
-            stats_dps(list).received_by_kind,
+            stats_dps(&list, None, None).received_by_kind,
             HashMap::new()
         )
     }
@@ -403,7 +408,7 @@ mod stats_tests {
         res.insert("Ice".to_string(), 1210);
         res.insert("Fire".to_string(), 2123);
         assert_eq!(
-            stats_dps(list).received_by_kind,
+            stats_dps(&list, None, None).received_by_kind,
             res
         )
     }
@@ -433,7 +438,7 @@ mod stats_tests {
             }
         ];
         assert_eq!(
-            stats_dps(list).emit_by_kind,
+            stats_dps(&list, None, None).emit_by_kind,
             HashMap::new()
         )
     }
@@ -477,7 +482,7 @@ mod stats_tests {
         res.insert("Ice".to_string(), 210);
         res.insert("Fire".to_string(), 1525);
         assert_eq!(
-            stats_dps(list).emit_by_kind,
+            stats_dps(&list, None, None).emit_by_kind,
             res
         )
     }
@@ -497,7 +502,7 @@ mod stats_tests {
             },
         ];
         assert_eq!(
-            stats_dps(list).received_by_enemy,
+            stats_dps(&list, None, None).received_by_enemy,
             HashMap::new()
         )
     }
@@ -541,7 +546,7 @@ mod stats_tests {
         res.insert("John".to_string(), 1128);
         res.insert("Lennon".to_string(), 3500);
         assert_eq!(
-            stats_dps(list).received_by_enemy,
+            stats_dps(&list, None, None).received_by_enemy,
             res
         )
     }
@@ -561,7 +566,7 @@ mod stats_tests {
             },
         ];
         assert_eq!(
-            stats_dps(list).emit_by_enemy,
+            stats_dps(&list, None, None).emit_by_enemy,
             HashMap::new()
         )
     }
@@ -605,7 +610,50 @@ mod stats_tests {
         res.insert("Jacques".to_string(), 400);
         res.insert("Paul".to_string(), 1988);
         assert_eq!(
-            stats_dps(list).emit_by_enemy,
+            stats_dps(&list, None, None).emit_by_enemy,
+            res
+        )
+    }
+
+    #[test]
+    fn assert_emit_by_enemy_clenup_by_time() {
+        let list = vec![
+            Dps {
+                date: DateTime::parse_from_rfc3339("2021-03-17T20:20:45.111Z").unwrap(),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "Paul".to_string(),
+                damage: 800,
+                kind: "Ice".to_string(),
+                absorbed: 100,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::parse_from_rfc3339("2021-03-17T20:50:45.111Z").unwrap(),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "Jacques".to_string(),
+                damage: 352,
+                kind: "Ice".to_string(),
+                absorbed: 48,
+                critical: false,
+            },
+            Dps {
+                date: DateTime::parse_from_rfc3339("2021-03-17T20:40:45.111Z").unwrap(),
+                emitter: "Your".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "Paul".to_string(),
+                damage: 88,
+                kind: "Fire".to_string(),
+                absorbed: 1000,
+                critical: false,
+            }
+        ];
+
+        let mut res: HashMap<String, u16> = HashMap::new();
+        res.insert("Paul".to_string(), 1088);
+        assert_eq!(
+            stats_dps(&list, Some(1616013551 ), Some(1616013751 )).emit_by_enemy,
             res
         )
     }

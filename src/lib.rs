@@ -12,18 +12,24 @@ use dps::*;
 use heal::*;
 use chrono::prelude::{DateTime, FixedOffset};
 use serde::{Serialize, Deserialize};
-use crate::split::split_in_fight;
+use crate::split::{split_in_fight, FightTimer};
 
 struct Data {
     pub dps: Vec<Dps>,
     pub heal: Vec<Heal>,
 }
 
-
 #[derive(Serialize, Deserialize)]
 pub struct ExportedData {
     pub dps_stats: DpsStats,
     pub errors : Vec<String>,
+    pub fights: Vec<Fight>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Fight{
+    pub time : FightTimer,
+    pub dps_stats: DpsStats,
 }
 
 #[wasm_bindgen]
@@ -55,13 +61,22 @@ pub fn parse(contents: &str, time_between: i64) -> JsValue {
         }
     }
 
-    let fight = split_in_fight(date_list, time_between);
+    let dps_stats = stats_dps(&data.dps, None, None);
 
-    let dps_stats = stats_dps(data.dps);
+    let fight_timers = split_in_fight(date_list, time_between);
+    let mut fight = vec![];
+
+    for timer in fight_timers {
+        fight.push(Fight{
+            time: timer.clone(),
+            dps_stats :stats_dps(&data.dps, Some(timer.start), Some(timer.end))
+        })
+    }
 
     let to_export = ExportedData {
         dps_stats,
-        errors
+        errors,
+        fights : fight
     };
     JsValue::from_serde(&to_export).unwrap()
 }

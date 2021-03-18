@@ -1,23 +1,24 @@
 
 use chrono::prelude::{DateTime, FixedOffset};
 use chrono::Duration;
+use serde::{Serialize, Deserialize};
 
 
-#[derive(Debug, PartialEq)]
-pub struct Fight{
-    start:DateTime<FixedOffset>,
-    end:DateTime<FixedOffset>
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct FightTimer {
+    pub start:i64,
+    pub end:i64
 }
 
-pub fn split_in_fight(mut list: Vec<DateTime<FixedOffset>>, diff : i64)-> Vec<Fight>{
+pub fn split_in_fight(mut list: Vec<DateTime<FixedOffset>>, diff : i64)-> Vec<FightTimer>{
 
     if list.len() == 0 {
         return vec![]
     }
     if list.len() == 1 {
-        return vec![Fight{
-            start: *list.first().unwrap(),
-            end: *list.first().unwrap(),
+        return vec![FightTimer {
+            start: list.first().unwrap().timestamp(),
+            end: list.first().unwrap().timestamp(),
         }]
     }
 
@@ -30,17 +31,17 @@ pub fn split_in_fight(mut list: Vec<DateTime<FixedOffset>>, diff : i64)-> Vec<Fi
 
     for current in  list{
         if current - previous > Duration::seconds(diff) {
-            res.push(Fight{
-                 start,
-                end: previous
+            res.push(FightTimer {
+                 start: start.timestamp(),
+                end: previous.timestamp()
             });
             start = current;
         }
         previous = current;
     }
-    res.push(Fight{
-        start,
-        end: previous
+    res.push(FightTimer {
+        start: start.timestamp(),
+        end: previous.timestamp()
     });
 
     return res
@@ -58,9 +59,9 @@ mod tests {
             split_in_fight(vec![
                 DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap()
             ],60),
-            vec![Fight{
-                start: DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap(),
-                end: DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap()
+            vec![FightTimer {
+                start: DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap().timestamp(),
+                end: DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap().timestamp()
             }]
         )
     }
@@ -78,15 +79,15 @@ mod tests {
                 DateTime::parse_from_rfc3339("2021-03-17T15:02:45.111Z").unwrap(),
                 DateTime::parse_from_rfc3339("2021-03-17T15:03:45.111Z").unwrap()
             ],120),
-            vec![Fight{
-                start: DateTime::parse_from_rfc3339("2021-03-17T15:01:45.111Z").unwrap(),
-                end: DateTime::parse_from_rfc3339("2021-03-17T15:03:45.111Z").unwrap()
-            },Fight{
-                start: DateTime::parse_from_rfc3339("2021-03-17T17:18:44.111Z").unwrap(),
-                end: DateTime::parse_from_rfc3339("2021-03-17T17:18:45.111Z").unwrap()
-            },Fight{
-                start: DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap(),
-                end: DateTime::parse_from_rfc3339("2021-03-17T20:31:28.111Z").unwrap()
+            vec![FightTimer {
+                start: DateTime::parse_from_rfc3339("2021-03-17T15:01:45.111Z").unwrap().timestamp(),
+                end: DateTime::parse_from_rfc3339("2021-03-17T15:03:45.111Z").unwrap().timestamp()
+            }, FightTimer {
+                start: DateTime::parse_from_rfc3339("2021-03-17T17:18:44.111Z").unwrap().timestamp(),
+                end: DateTime::parse_from_rfc3339("2021-03-17T17:18:45.111Z").unwrap().timestamp()
+            }, FightTimer {
+                start: DateTime::parse_from_rfc3339("2021-03-17T20:30:45.111Z").unwrap().timestamp(),
+                end: DateTime::parse_from_rfc3339("2021-03-17T20:31:28.111Z").unwrap().timestamp()
             },]
         )
     }
