@@ -17,9 +17,9 @@ pub struct Dps {
     pub emitter: String,
     pub spell: String,
     pub receiver: String,
-    pub damage: u16,
+    pub damage: u32,
     pub kind: String,
-    pub absorbed: u16,
+    pub absorbed: u32,
     pub critical: bool,
 }
 
@@ -36,7 +36,7 @@ pub fn parse_dps(row: &str, dt: DateTime<FixedOffset>) -> Option<Dps> {
 
         let absorbed = match cap.get(6) {
             Some(_) => {
-                cap[6].parse::<u16>().unwrap()
+                cap[6].parse::<u32>().unwrap()
             }
             None => {
                 0
@@ -66,7 +66,7 @@ pub fn parse_dps(row: &str, dt: DateTime<FixedOffset>) -> Option<Dps> {
             emitter: cap[1].to_string(),
             spell,
             receiver: cap[3].to_string(),
-            damage: cap[4].parse::<u16>().unwrap(),
+            damage: cap[4].parse::<u32>().unwrap(),
             kind,
             absorbed,
             critical,
@@ -285,22 +285,40 @@ mod parse_tests {
 #[derive(Debug, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct DpsStats {
-    pub received_by_kind: HashMap<String, u16>,
-    pub emit_by_kind: HashMap<String, u16>,
-    pub received_by_enemy: HashMap<String, u16>,
-    pub emit_by_enemy: HashMap<String, u16>,
+    pub received_by_kind: HashMap<String, u32>,
+    pub emit_by_kind: HashMap<String, u32>,
+    pub received_by_enemy: HashMap<String, u32>,
+    pub emit_by_enemy: HashMap<String, u32>,
+    pub emit_by_seconds: Vec<u32>,
+    pub emit_by_seconds_absorbed: Vec<u32>,
+    pub received_by_seconds: Vec<u32>,
+    pub received_by_seconds_absorbed: Vec<u32>,
 }
 
-pub fn stats_dps(list: &Vec<Dps>, start : Option<i64>, end : Option<i64>) -> DpsStats {
+pub fn stats_dps(list: &Vec<Dps>, start: Option<i64>, end: Option<i64>) -> DpsStats {
     let mut received_by_kind = HashMap::new();
     let mut emit_by_kind = HashMap::new();
     let mut received_by_enemy = HashMap::new();
     let mut emit_by_enemy = HashMap::new();
+    let mut emit_by_seconds = vec![];
+    let mut emit_by_seconds_absorbed = vec![];
+    let mut received_by_seconds = vec![];
+    let mut received_by_seconds_absorbed = vec![];
+    let mut take_seconds = false;
+
+    if start != None && end != None {
+        let s = (end.unwrap() - start.unwrap() +1) as usize ;
+
+        emit_by_seconds = vec![0; s];
+        emit_by_seconds_absorbed = vec![0; s];
+        received_by_seconds = vec![0; s];
+        received_by_seconds_absorbed = vec![0; s];
+        take_seconds = true;
+    }
 
     for dps in list.iter() {
-
-        if dps.date.timestamp() < start.unwrap_or(0) ||  dps.date.timestamp() > end.unwrap_or(29679085651 ){
-            continue
+        if dps.date.timestamp() < start.unwrap_or(0) || dps.date.timestamp() > end.unwrap_or(i64::max_value()) {
+            continue;
         }
 
         if dps.kind != "" {
@@ -318,11 +336,19 @@ pub fn stats_dps(list: &Vec<Dps>, start : Option<i64>, end : Option<i64>) -> Dps
         if dps.receiver == SELF_RECEIVER {
             let rec = received_by_enemy.entry(dps.emitter.to_string()).or_insert(0);
             *rec += dps.damage + dps.absorbed;
+            if take_seconds {
+                received_by_seconds[(dps.date.timestamp() - start.unwrap()) as usize] += dps.damage;
+                received_by_seconds_absorbed[(dps.date.timestamp() - start.unwrap()) as usize] += dps.absorbed;
+            }
         }
 
         if dps.emitter == SELF_EMITTER {
             let emit = emit_by_enemy.entry(dps.receiver.to_string()).or_insert(0);
             *emit += dps.damage + dps.absorbed;
+            if take_seconds {
+                emit_by_seconds[(dps.date.timestamp() - start.unwrap()) as usize] += dps.damage;
+                emit_by_seconds_absorbed[(dps.date.timestamp() - start.unwrap()) as usize] += dps.absorbed;
+            }
         }
     }
 
@@ -331,6 +357,10 @@ pub fn stats_dps(list: &Vec<Dps>, start : Option<i64>, end : Option<i64>) -> Dps
         emit_by_kind,
         received_by_enemy,
         emit_by_enemy,
+        emit_by_seconds,
+        emit_by_seconds_absorbed,
+        received_by_seconds,
+        received_by_seconds_absorbed,
     }
 }
 
@@ -404,7 +434,7 @@ mod stats_tests {
             }
         ];
 
-        let mut res: HashMap<String, u16> = HashMap::new();
+        let mut res: HashMap<String, u32> = HashMap::new();
         res.insert("Ice".to_string(), 1210);
         res.insert("Fire".to_string(), 2123);
         assert_eq!(
@@ -478,7 +508,7 @@ mod stats_tests {
             }
         ];
 
-        let mut res: HashMap<String, u16> = HashMap::new();
+        let mut res: HashMap<String, u32> = HashMap::new();
         res.insert("Ice".to_string(), 210);
         res.insert("Fire".to_string(), 1525);
         assert_eq!(
@@ -542,7 +572,7 @@ mod stats_tests {
             }
         ];
 
-        let mut res: HashMap<String, u16> = HashMap::new();
+        let mut res: HashMap<String, u32> = HashMap::new();
         res.insert("John".to_string(), 1128);
         res.insert("Lennon".to_string(), 3500);
         assert_eq!(
@@ -606,7 +636,7 @@ mod stats_tests {
             }
         ];
 
-        let mut res: HashMap<String, u16> = HashMap::new();
+        let mut res: HashMap<String, u32> = HashMap::new();
         res.insert("Jacques".to_string(), 400);
         res.insert("Paul".to_string(), 1988);
         assert_eq!(
@@ -650,11 +680,25 @@ mod stats_tests {
             }
         ];
 
-        let mut res: HashMap<String, u16> = HashMap::new();
+        let mut res: HashMap<String, u32> = HashMap::new();
         res.insert("Paul".to_string(), 1088);
+
+        let stats = stats_dps(&list, Some(DateTime::parse_from_rfc3339("2021-03-17T20:40:00.111Z").unwrap().timestamp()), Some(DateTime::parse_from_rfc3339("2021-03-17T20:42:00.111Z").unwrap().timestamp()));
         assert_eq!(
-            stats_dps(&list, Some(1616013551 ), Some(1616013751 )).emit_by_enemy,
+            stats.emit_by_enemy,
             res
+        );
+        let mut seconds = vec![0; 121];
+        seconds[45] = 88;
+        assert_eq!(
+            stats.emit_by_seconds,
+            seconds
+        );
+        let mut seconds_absorbed = vec![0; 121];
+        seconds_absorbed[45] = 1000;
+        assert_eq!(
+            stats.emit_by_seconds_absorbed,
+            seconds_absorbed
         )
     }
 }

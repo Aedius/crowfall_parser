@@ -20,8 +20,7 @@ function readFile(file) {
 
     reader.addEventListener('load', (event) => {
 
-        let res = window.parse( event.target.result, timeBetween.value)
-        console.log( res);
+        let res = window.parse( event.target.result, BigInt(timeBetween.value,10))
         if (res.errors.length> 0){
             alert("cannot parse the following lines : \n" + res.errors.join("\n"))
         }

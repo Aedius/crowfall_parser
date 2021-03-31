@@ -12,8 +12,8 @@ pub struct Heal {
     pub emitter: String,
     pub spell: String,
     pub receiver: String,
-    pub heal: u16,
-    pub absorbed: u16,
+    pub heal: u32,
+    pub absorbed: u32,
     pub critical: bool,
 }
 
@@ -21,7 +21,7 @@ pub fn parse_heal(row: &str, dt: DateTime<FixedOffset>) -> Option<Heal> {
     for cap in RE_HEAL.captures_iter(row) {
         let absorbed = match cap.get(6) {
             Some(_) => {
-                cap[6].parse::<u16>().unwrap()
+                cap[6].parse::<u32>().unwrap()
             }
             None => {
                 0
@@ -42,7 +42,7 @@ pub fn parse_heal(row: &str, dt: DateTime<FixedOffset>) -> Option<Heal> {
             emitter: cap[1].to_string(),
             spell: cap[2].to_string(),
             receiver: cap[3].to_string(),
-            heal: cap[4].parse::<u16>().unwrap(),
+            heal: cap[4].parse::<u32>().unwrap(),
             absorbed,
             critical,
         });

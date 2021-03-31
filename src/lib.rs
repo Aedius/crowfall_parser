@@ -19,14 +19,14 @@ struct Data {
     pub heal: Vec<Heal>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ExportedData {
     pub dps_stats: DpsStats,
     pub errors : Vec<String>,
     pub fights: Vec<Fight>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Fight{
     pub time : FightTimer,
     pub dps_stats: DpsStats,
@@ -34,7 +34,13 @@ pub struct Fight{
 
 #[wasm_bindgen]
 pub fn parse(contents: &str, time_between: i64) -> JsValue {
-    let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\] ").unwrap();
+    let to_export = parse_rust(contents, time_between);
+
+    JsValue::from_serde(&to_export).unwrap()
+}
+
+fn parse_rust(contents: &str, time_between: i64) -> ExportedData {
+    let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\]").unwrap();
 
     let mut data = Data {
         dps: Default::default(),
@@ -49,12 +55,17 @@ pub fn parse(contents: &str, time_between: i64) -> JsValue {
     let mut errors = vec![];
 
     for line in lines {
+
+        if !re_event.is_match(line){
+            println!("NO MATCH : {:?}",line);
+        }
+
         for cap in re_event.captures_iter(line) {
             let d = DateTime::parse_from_rfc3339(&cap[1]).unwrap();
 
             if data.parse_row(&cap[2], d) {
                 date_list.push(d);
-            }else{
+            } else {
                 errors.push(cap[2].to_string());
             }
             nb = nb + 1;
@@ -67,18 +78,18 @@ pub fn parse(contents: &str, time_between: i64) -> JsValue {
     let mut fight = vec![];
 
     for timer in fight_timers {
-        fight.push(Fight{
+        fight.push(Fight {
             time: timer.clone(),
-            dps_stats :stats_dps(&data.dps, Some(timer.start), Some(timer.end))
+            dps_stats: stats_dps(&data.dps, Some(timer.start), Some(timer.end))
         })
     }
 
     let to_export = ExportedData {
         dps_stats,
         errors,
-        fights : fight
+        fights: fight
     };
-    JsValue::from_serde(&to_export).unwrap()
+    to_export
 }
 
 
@@ -125,4 +136,29 @@ impl Data {
         println!("{:?}", row);
         return false;
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+    use std::fs::{File};
+    use std::io::BufReader;
+    use std::io::prelude::*;
+
+    #[test]
+    fn assert_parse() {
+        let file = File::open("./fixtures/file1.txt").unwrap();
+        let mut buf_reader = BufReader::new(file);
+        let mut contents = String::new();
+        buf_reader.read_to_string(&mut contents).unwrap();
+
+        let calc = parse_rust(contents.as_str(), 30);
+
+        assert_eq!(calc.errors.len(), 0);
+        assert_eq!(calc.fights.len(), 17);
+
+        println!("{:?}", calc)
+    }
+
 }
