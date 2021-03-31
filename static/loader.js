@@ -14,9 +14,17 @@ fileSelector.addEventListener('change', (event) => {
 
 var chart_emit_by_kind = null;
 var chart_received_by_kind = null;
+var fights = [];
+
+
+const fight_list = document.getElementById("fight_list");
+fight_list.addEventListener('change', (event)=>{
+    render_all_timer(event.target.value)
+})
 
 function readFile(file) {
     const reader = new FileReader();
+
 
     reader.addEventListener('load', (event) => {
 
@@ -25,13 +33,28 @@ function readFile(file) {
             alert("cannot parse the following lines : \n" + res.errors.join("\n"))
         }
 
-        render_bar( "chart_received_by_kind", res.dps_stats.received_by_kind);
-        render_bar( "chart_emit_by_kind", res.dps_stats.emit_by_kind);
-        render_bar( "chart_received_by_enemy", res.dps_stats.received_by_enemy);
-        render_bar( "chart_emit_by_enemy", res.dps_stats.emit_by_enemy);
+        render_bar( "#global_chart_received_by_kind", res.dps_stats.received_by_kind);
+        render_bar( "#global_chart_emit_by_kind", res.dps_stats.emit_by_kind);
+        render_bar( "#global_chart_received_by_enemy", res.dps_stats.received_by_enemy);
+        render_bar( "#global_chart_emit_by_enemy", res.dps_stats.emit_by_enemy);
+
+        fights = res.fights;
+
+        fight_list.innerHTML="";
+        for (var i = 0; i < fights.length; i++){
+            let st = new Date(fights[i].time.start * 1000);
+            let nd = new Date(fights[i].time.end *1000);
+            fight_list.options[fight_list.options.length]=  new Option(st.toLocaleTimeString() + " -> " + nd.toLocaleTimeString() + " : "+ fights[i].opponent.join(", "), i)
+        }
+
+        if (res.fights[0]){
+            render_all_timer(0)
+        }
 
     });
     reader.readAsText(file);
+
+
 }
 
 var chart_by_id ={};
@@ -68,8 +91,86 @@ function render_bar(id, data){
 
     }
 
-    let obj = new ApexCharts(document.querySelector("#"+id), options);
+    let obj = new ApexCharts(document.querySelector(id), options);
     obj.render();
 
     chart_by_id[id] = obj
 }
+
+function render_all_timer(num){
+
+  let received_series =  [{
+       name: 'damage received',
+       data: fights[num].dps_stats.received_by_seconds
+     }, {
+       name: 'damage absorbed',
+       data: fights[num].dps_stats.received_by_seconds_absorbed
+     }];
+
+    render_timer( "#time_received", received_series)
+
+
+    let emit_series =  [{
+       name: 'dps emit',
+       data: fights[num].dps_stats.emit_by_seconds
+     }, {
+       name: 'dps absorbed',
+       data: fights[num].dps_stats.emit_by_seconds_absorbed
+     }];
+
+    render_timer( "#time_emit", emit_series)
+
+    render_bar( "#chart_received_by_kind", fights[num].dps_stats.received_by_kind);
+    render_bar( "#chart_emit_by_kind", fights[num].dps_stats.emit_by_kind);
+    render_bar( "#chart_received_by_enemy", fights[num].dps_stats.received_by_enemy);
+    render_bar( "#chart_emit_by_enemy", fights[num].dps_stats.emit_by_enemy);
+}
+
+function render_timer(id, data){
+    if (chart_by_id[id] != null){
+        chart_by_id[id].destroy();
+    }
+
+
+    var options = {
+      series: data,
+      chart: {
+      type: 'bar',
+      height: 350,
+      stacked: true,
+      toolbar: {
+        show: true
+      },
+      zoom: {
+        enabled: true
+      }
+    },
+    responsive: [{
+      options: {
+        legend: {
+          position: 'bottom',
+          offsetX: -10,
+          offsetY: 0
+        }
+      }
+    }],
+    plotOptions: {
+      bar: {
+        borderRadius: 8,
+        horizontal: false,
+      },
+    },
+    legend: {
+      position: 'right',
+      offsetY: 40
+    },
+    fill: {
+      opacity: 1
+    }
+   };
+
+
+    var chart = new ApexCharts(document.querySelector(id), options);
+    chart.render();
+    chart_by_id[id] = chart
+ }

@@ -28,6 +28,7 @@ pub struct ExportedData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Fight{
+    pub opponent: Vec<String>,
     pub time : FightTimer,
     pub dps_stats: DpsStats,
 }
@@ -72,15 +73,18 @@ fn parse_rust(contents: &str, time_between: i64) -> ExportedData {
         }
     }
 
-    let dps_stats = stats_dps(&data.dps, None, None);
+    let ( dps_stats, _) = stats_dps(&data.dps, None, None);
 
     let fight_timers = split_in_fight(date_list, time_between);
     let mut fight = vec![];
 
     for timer in fight_timers {
+
+        let (dps_stats, opponent ) = stats_dps(&data.dps, Some(timer.start), Some(timer.end));
         fight.push(Fight {
             time: timer.clone(),
-            dps_stats: stats_dps(&data.dps, Some(timer.start), Some(timer.end))
+            dps_stats,
+            opponent
         })
     }
 

@@ -3,6 +3,7 @@ use regex::Regex;
 use chrono::prelude::*;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use std::iter::FromIterator;
 
 const SELF_EMITTER: &str = "Your";
 const SELF_RECEIVER: &str = "You";
@@ -295,7 +296,7 @@ pub struct DpsStats {
     pub received_by_seconds_absorbed: Vec<u32>,
 }
 
-pub fn stats_dps(list: &Vec<Dps>, start: Option<i64>, end: Option<i64>) -> DpsStats {
+pub fn stats_dps(list: &Vec<Dps>, start: Option<i64>, end: Option<i64>) -> (DpsStats, Vec<String>) {
     let mut received_by_kind = HashMap::new();
     let mut emit_by_kind = HashMap::new();
     let mut received_by_enemy = HashMap::new();
@@ -352,7 +353,18 @@ pub fn stats_dps(list: &Vec<Dps>, start: Option<i64>, end: Option<i64>) -> DpsSt
         }
     }
 
-    DpsStats {
+    let mut opponent = vec!();
+    for e in Vec::from_iter(received_by_enemy.keys().clone()){
+        opponent.push(e.to_lowercase());
+    }
+    for e in Vec::from_iter(emit_by_enemy.keys().clone()){
+        opponent.push(e.to_lowercase());
+    }
+
+    opponent.sort();
+    opponent.dedup();
+
+    (DpsStats {
         received_by_kind,
         emit_by_kind,
         received_by_enemy,
@@ -361,7 +373,7 @@ pub fn stats_dps(list: &Vec<Dps>, start: Option<i64>, end: Option<i64>) -> DpsSt
         emit_by_seconds_absorbed,
         received_by_seconds,
         received_by_seconds_absorbed,
-    }
+    }, opponent)
 }
 
 #[cfg(test)]
@@ -394,7 +406,7 @@ mod stats_tests {
             }
         ];
         assert_eq!(
-            stats_dps(&list, None, None).received_by_kind,
+            stats_dps(&list, None, None).0.received_by_kind,
             HashMap::new()
         )
     }
@@ -438,7 +450,7 @@ mod stats_tests {
         res.insert("Ice".to_string(), 1210);
         res.insert("Fire".to_string(), 2123);
         assert_eq!(
-            stats_dps(&list, None, None).received_by_kind,
+            stats_dps(&list, None, None).0.received_by_kind,
             res
         )
     }
@@ -468,7 +480,7 @@ mod stats_tests {
             }
         ];
         assert_eq!(
-            stats_dps(&list, None, None).emit_by_kind,
+            stats_dps(&list, None, None).0.emit_by_kind,
             HashMap::new()
         )
     }
@@ -512,7 +524,7 @@ mod stats_tests {
         res.insert("Ice".to_string(), 210);
         res.insert("Fire".to_string(), 1525);
         assert_eq!(
-            stats_dps(&list, None, None).emit_by_kind,
+            stats_dps(&list, None, None).0.emit_by_kind,
             res
         )
     }
@@ -532,7 +544,7 @@ mod stats_tests {
             },
         ];
         assert_eq!(
-            stats_dps(&list, None, None).received_by_enemy,
+            stats_dps(&list, None, None).0.received_by_enemy,
             HashMap::new()
         )
     }
@@ -576,7 +588,7 @@ mod stats_tests {
         res.insert("John".to_string(), 1128);
         res.insert("Lennon".to_string(), 3500);
         assert_eq!(
-            stats_dps(&list, None, None).received_by_enemy,
+            stats_dps(&list, None, None).0.received_by_enemy,
             res
         )
     }
@@ -596,7 +608,7 @@ mod stats_tests {
             },
         ];
         assert_eq!(
-            stats_dps(&list, None, None).emit_by_enemy,
+            stats_dps(&list, None, None).0.emit_by_enemy,
             HashMap::new()
         )
     }
@@ -640,7 +652,7 @@ mod stats_tests {
         res.insert("Jacques".to_string(), 400);
         res.insert("Paul".to_string(), 1988);
         assert_eq!(
-            stats_dps(&list, None, None).emit_by_enemy,
+            stats_dps(&list, None, None).0.emit_by_enemy,
             res
         )
     }
@@ -683,7 +695,7 @@ mod stats_tests {
         let mut res: HashMap<String, u32> = HashMap::new();
         res.insert("Paul".to_string(), 1088);
 
-        let stats = stats_dps(&list, Some(DateTime::parse_from_rfc3339("2021-03-17T20:40:00.111Z").unwrap().timestamp()), Some(DateTime::parse_from_rfc3339("2021-03-17T20:42:00.111Z").unwrap().timestamp()));
+        let stats = stats_dps(&list, Some(DateTime::parse_from_rfc3339("2021-03-17T20:40:00.111Z").unwrap().timestamp()), Some(DateTime::parse_from_rfc3339("2021-03-17T20:42:00.111Z").unwrap().timestamp())).0;
         assert_eq!(
             stats.emit_by_enemy,
             res
