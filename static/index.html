@@ -6,9 +6,9 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
     <style>
-        #container .quarter{
+        #container .chart_float{
         float: left;
-            width:25%;
+            width:16%;
         }
 
     </style>
@@ -20,21 +20,30 @@
 <input type="file" id="file-selector">
 
 <div id="container">
-    <div class="quarter">
-        <h2>Emit by Kind ( full file )</h2>
+    <div class="chart_float">
+        <h2>Damage emit by kind ( full file )</h2>
         <div id="global_chart_emit_by_kind"></div>
     </div>
-    <div class="quarter">
-        <h2>Received by Kind ( full file )</h2>
+    <div class="chart_float">
+        <h2>Damage received by kind ( full file )</h2>
         <div id="global_chart_received_by_kind"></div>
     </div>
-    <div class="quarter">
-        <h2>Emit by Opponent ( full file )</h2>
+    <div class="chart_float">
+        <h2>Damage emit by opponent ( full file )</h2>
         <div id="global_chart_emit_by_enemy"></div>
     </div>
-    <div class="quarter">
-        <h2>Received by Opponent ( full file )</h2>
+    <div class="chart_float">
+        <h2>Damage received by opponent ( full file )</h2>
         <div id="global_chart_received_by_enemy"></div>
+    </div>
+
+    <div class="chart_float">
+        <h2>Heal emit by ally ( full file )</h2>
+        <div id="global_chart_emit_by_ally"></div>
+    </div>
+    <div class="chart_float">
+        <h2>Heal received by ally ( full file )</h2>
+        <div id="global_chart_received_by_ally"></div>
     </div>
 
     <div>
@@ -44,31 +53,47 @@
     </div>
 
     <div class="full-time">
-        <h2>Received</h2>
-        <div id="time_received"></div>
+        <h2>Damage received</h2>
+        <div id="time_damage_received"></div>
     </div>
     <div class="full-time">
-        <h2>Emit</h2>
-        <div id="time_emit"></div>
+        <h2>Heal received</h2>
+        <div id="time_heal_received"></div>
+    </div>
+    <div class="full-time">
+        <h2>Damage emit</h2>
+        <div id="time_damage_emit"></div>
+    </div>
+    <div class="full-time">
+        <h2>Heal emit</h2>
+        <div id="time_heal_emit"></div>
     </div>
 
-    <div class="quarter">
+    <div class="chart_float">
         <h2>Emit by Kind</h2>
         <div id="chart_emit_by_kind"></div>
     </div>
-    <div class="quarter">
+    <div class="chart_float">
         <h2>Received by Kind</h2>
         <div id="chart_received_by_kind"></div>
     </div>
-    <div class="quarter">
+    <div class="chart_float">
         <h2>Emit by Opponent</h2>
         <div id="chart_emit_by_enemy"></div>
     </div>
-    <div class="quarter">
+    <div class="chart_float">
         <h2>Received by Opponent</h2>
         <div id="chart_received_by_enemy"></div>
     </div>
 
+    <div class="chart_float">
+        <h2>Heal emit by ally</h2>
+        <div id="chart_emit_by_ally"></div>
+    </div>
+    <div class="chart_float">
+        <h2>Heal received by ally</h2>
+        <div id="chart_received_by_ally"></div>
+    </div>
 </div>
 
 <script src="loader.js"></script>

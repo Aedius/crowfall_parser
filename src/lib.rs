@@ -22,6 +22,7 @@ struct Data {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ExportedData {
     pub dps_stats: DpsStats,
+    pub heal_stats: HealStats,
     pub errors : Vec<String>,
     pub fights: Vec<Fight>,
 }
@@ -31,6 +32,7 @@ pub struct Fight{
     pub opponent: Vec<String>,
     pub time : FightTimer,
     pub dps_stats: DpsStats,
+    pub heal_stats: HealStats,
 }
 
 #[wasm_bindgen]
@@ -74,22 +76,31 @@ fn parse_rust(contents: &str, time_between: i64) -> ExportedData {
     }
 
     let ( dps_stats, _) = stats_dps(&data.dps, None, None);
+    let ( heal_stats, _) = stats_heal(&data.heal, None, None);
 
     let fight_timers = split_in_fight(date_list, time_between);
     let mut fight = vec![];
 
     for timer in fight_timers {
 
-        let (dps_stats, opponent ) = stats_dps(&data.dps, Some(timer.start), Some(timer.end));
+        let (dps_stats, mut opponent ) = stats_dps(&data.dps, Some(timer.start), Some(timer.end));
+        let (heal_stats, mut opponent_heal ) = stats_heal(&data.heal, Some(timer.start), Some(timer.end));
+        opponent.append(&mut opponent_heal);
+
+        opponent.sort();
+        opponent.dedup();
+
         fight.push(Fight {
             time: timer.clone(),
             dps_stats,
+            heal_stats,
             opponent
         })
     }
 
     let to_export = ExportedData {
         dps_stats,
+        heal_stats,
         errors,
         fights: fight
     };

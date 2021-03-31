@@ -33,10 +33,15 @@ function readFile(file) {
             alert("cannot parse the following lines : \n" + res.errors.join("\n"))
         }
 
+        console.log(res.heal_stats)
+
+
         render_bar( "#global_chart_received_by_kind", res.dps_stats.received_by_kind);
         render_bar( "#global_chart_emit_by_kind", res.dps_stats.emit_by_kind);
         render_bar( "#global_chart_received_by_enemy", res.dps_stats.received_by_enemy);
         render_bar( "#global_chart_emit_by_enemy", res.dps_stats.emit_by_enemy);
+        render_bar( "#global_chart_received_by_ally", res.heal_stats.received_by_ally);
+        render_bar( "#global_chart_emit_by_ally", res.heal_stats.emit_by_ally);
 
         fights = res.fights;
 
@@ -99,38 +104,57 @@ function render_bar(id, data){
 
 function render_all_timer(num){
 
-  let received_series =  [{
+  let received_damage_series =  [{
        name: 'damage received',
        data: fights[num].dps_stats.received_by_seconds
      }, {
        name: 'damage absorbed',
        data: fights[num].dps_stats.received_by_seconds_absorbed
      }];
+    render_timer( "#time_damage_received", received_damage_series, ['#d4526e', '#f9a3a4' ]);
 
-    render_timer( "#time_received", received_series)
+  let received_heal_series =  [{
+       name: 'heal received',
+       data: fights[num].heal_stats.received_by_seconds
+     }, {
+       name: 'heal absorbed',
+       data: fights[num].heal_stats.received_by_seconds_absorbed
+     }];
+
+    render_timer( "#time_heal_received", received_heal_series, ['#33b2df', '#69d2e7' ]);
 
 
-    let emit_series =  [{
+    let emit_damage_series =  [{
        name: 'dps emit',
        data: fights[num].dps_stats.emit_by_seconds
      }, {
        name: 'dps absorbed',
        data: fights[num].dps_stats.emit_by_seconds_absorbed
      }];
+    render_timer( "#time_damage_emit", emit_damage_series,  ['#d4526e', '#f9a3a4' ]);
 
-    render_timer( "#time_emit", emit_series)
+    let emit_heal_series =  [{
+       name: 'heal emit',
+       data: fights[num].heal_stats.emit_by_seconds
+     }, {
+       name: 'heal absorbed',
+       data: fights[num].heal_stats.emit_by_seconds_absorbed
+     }];
+
+    render_timer( "#time_heal_emit", emit_heal_series, ['#33b2df', '#69d2e7' ]);
 
     render_bar( "#chart_received_by_kind", fights[num].dps_stats.received_by_kind);
     render_bar( "#chart_emit_by_kind", fights[num].dps_stats.emit_by_kind);
     render_bar( "#chart_received_by_enemy", fights[num].dps_stats.received_by_enemy);
     render_bar( "#chart_emit_by_enemy", fights[num].dps_stats.emit_by_enemy);
+    render_bar( "#chart_received_by_ally", fights[num].heal_stats.received_by_ally);
+    render_bar( "#chart_emit_by_ally", fights[num].heal_stats.emit_by_ally);
 }
 
-function render_timer(id, data){
+function render_timer(id, data, colors){
     if (chart_by_id[id] != null){
         chart_by_id[id].destroy();
     }
-
 
     var options = {
       series: data,
@@ -154,6 +178,7 @@ function render_timer(id, data){
         }
       }
     }],
+    colors: colors,
     plotOptions: {
       bar: {
         borderRadius: 8,

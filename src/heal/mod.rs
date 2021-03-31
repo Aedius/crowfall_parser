@@ -1,6 +1,12 @@
 use regex::Regex;
 
 use chrono::prelude::*;
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
+use std::iter::FromIterator;
+
+const SELF_EMITTER: &str = "Your";
+const SELF_RECEIVER: &str = "You";
 
 lazy_static! {
     pub static ref RE_HEAL: Regex = Regex::new("^([^ ]+) (.+) healed (.+) for ([0-9]+)( \\(([0-9]+) absorbed\\))?( hit points)?( \\(Critical\\))?.$").unwrap();
@@ -131,4 +137,132 @@ mod tests {
             }
         )
     }
+}
+
+#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
+pub struct HealStats {
+    pub received_by_ally: HashMap<String, u32>,
+    pub emit_by_ally: HashMap<String, u32>,
+    pub emit_by_seconds: Vec<u32>,
+    pub emit_by_seconds_absorbed: Vec<u32>,
+    pub received_by_seconds: Vec<u32>,
+    pub received_by_seconds_absorbed: Vec<u32>,
+}
+
+pub fn stats_heal(list: &Vec<Heal>, start: Option<i64>, end: Option<i64>) -> (HealStats, Vec<String>) {
+
+    let mut received_by_ally = HashMap::new();
+    let mut emit_by_ally = HashMap::new();
+    let mut emit_by_seconds = vec![];
+    let mut emit_by_seconds_absorbed = vec![];
+    let mut received_by_seconds = vec![];
+    let mut received_by_seconds_absorbed = vec![];
+    let mut take_seconds = false;
+
+    if start != None && end != None {
+        let s = (end.unwrap() - start.unwrap() +1) as usize ;
+
+        emit_by_seconds = vec![0; s];
+        emit_by_seconds_absorbed = vec![0; s];
+        received_by_seconds = vec![0; s];
+        received_by_seconds_absorbed = vec![0; s];
+        take_seconds = true;
+    }
+
+    for heal in list.iter(){
+
+        if heal.date.timestamp() < start.unwrap_or(0) || heal.date.timestamp() > end.unwrap_or(i64::max_value()) {
+            continue;
+        }
+
+        if heal.receiver == SELF_RECEIVER {
+            let rec = received_by_ally.entry(heal.emitter.to_string()).or_insert(0);
+            *rec += heal.heal + heal.absorbed;
+            if take_seconds {
+                received_by_seconds[(heal.date.timestamp() - start.unwrap()) as usize] += heal.heal;
+                received_by_seconds_absorbed[(heal.date.timestamp() - start.unwrap()) as usize] += heal.absorbed;
+            }
+        }
+
+        if heal.emitter == SELF_EMITTER {
+            let emit = emit_by_ally.entry(heal.receiver.to_string()).or_insert(0);
+            *emit += heal.heal + heal.absorbed;
+            if take_seconds {
+                emit_by_seconds[(heal.date.timestamp() - start.unwrap()) as usize] += heal.heal;
+                emit_by_seconds_absorbed[(heal.date.timestamp() - start.unwrap()) as usize] += heal.absorbed;
+            }
+        }
+
+    }
+
+    let mut opponent = vec!();
+    for e in Vec::from_iter(received_by_ally.keys().clone()){
+        opponent.push(e.to_lowercase());
+    }
+    for e in Vec::from_iter(emit_by_ally.keys().clone()){
+        opponent.push(e.to_lowercase());
+    }
+
+    opponent.sort();
+    opponent.dedup();
+
+    (HealStats {
+        received_by_ally,
+        emit_by_ally,
+        emit_by_seconds,
+        emit_by_seconds_absorbed,
+        received_by_seconds,
+        received_by_seconds_absorbed,
+    }, opponent)
+}
+
+#[cfg(test)]
+mod stats_tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+
+
+    #[test]
+    fn assert_ally_received_sum() {
+        let list = vec![
+            Heal {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                absorbed: 0,
+                critical: false,
+                heal: 150
+            },
+            Heal {
+                date: DateTime::from(Utc::now()),
+                emitter: "John".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                absorbed: 5,
+                critical: false,
+                heal: 800
+            },
+            Heal {
+                date: DateTime::from(Utc::now()),
+                emitter: "Lennon".to_string(),
+                spell: "Spell".to_string(),
+                receiver: "You".to_string(),
+                absorbed: 0,
+                critical: true,
+                heal: 1000
+            }
+        ];
+
+        let mut res: HashMap<String, u32> = HashMap::new();
+        res.insert("Lennon".to_string(), 1000);
+        res.insert("John".to_string(), 955);
+        assert_eq!(
+            stats_heal(&list, None, None).0.received_by_ally,
+            res
+        )
+    }
+
 }
