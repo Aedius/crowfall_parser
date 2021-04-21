@@ -2,6 +2,7 @@
 
 const fileSelector = document.getElementById('file-selector');
 const timeBetween = document.getElementById('time-between');
+const timeMinimum = document.getElementById('minimum-time');
 
 fileSelector.addEventListener('change', (event) => {
 
@@ -19,7 +20,9 @@ var fights = [];
 
 const fight_list = document.getElementById("fight_list");
 fight_list.addEventListener('change', (event)=>{
+    console.time("display");
     render_all_timer(event.target.value)
+    console.timeEnd("display");
 })
 
 function readFile(file) {
@@ -28,20 +31,16 @@ function readFile(file) {
 
     reader.addEventListener('load', (event) => {
 
-        let res = window.parse( event.target.result, BigInt(timeBetween.value,10))
+        console.time("parse");
+
+        let res = window.parse( event.target.result, BigInt(timeBetween.value,10), BigInt(timeMinimum.value,10) )
+
+        console.timeEnd("parse");
+        console.time("display");
+
         if (res.errors.length> 0){
             alert("cannot parse the following lines : \n" + res.errors.join("\n"))
         }
-
-        console.log(res.heal_stats)
-
-
-        render_bar( "#global_chart_received_by_kind", res.dps_stats.received_by_kind);
-        render_bar( "#global_chart_emit_by_kind", res.dps_stats.emit_by_kind);
-        render_bar( "#global_chart_received_by_enemy", res.dps_stats.received_by_enemy);
-        render_bar( "#global_chart_emit_by_enemy", res.dps_stats.emit_by_enemy);
-        render_bar( "#global_chart_received_by_ally", res.heal_stats.received_by_ally);
-        render_bar( "#global_chart_emit_by_ally", res.heal_stats.emit_by_ally);
 
         fights = res.fights;
 
@@ -55,6 +54,7 @@ function readFile(file) {
         if (res.fights[0]){
             render_all_timer(0)
         }
+        console.timeEnd("display");
 
     });
     reader.readAsText(file);

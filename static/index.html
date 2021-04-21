@@ -11,47 +11,38 @@
             width:16%;
         }
 
+        #config #file {
+            float:left;
+            width:50%;
+        }
+
+        #config #param {
+            float:left;
+            width:50%;
+        }
+
     </style>
 </head>
 <body>
-Choose your file ( should be in C:\Users\&lt;YOUR WINDOWS USERNAME&gt;>\AppData\LocalLow\Art+Craft\Crowfall\CombatLogs )<br/>
-<input type="file" id="file-selector"><br/><br/>
+<div id="config">
 
-<input type="number" value="30" id="time-between"> secondes between fight <br/>
-
-
-<div id="container">
-    <div class="chart_float">
-        <h2>Damage emit by kind ( full file )</h2>
-        <div id="global_chart_emit_by_kind"></div>
+    <div id="file">
+        Choose your file ( should be in C:\Users\&lt;YOUR WINDOWS USERNAME&gt;>\AppData\LocalLow\Art+Craft\Crowfall\CombatLogs )<br/>
+        <input type="file" id="file-selector">
     </div>
-    <div class="chart_float">
-        <h2>Damage received by kind ( full file )</h2>
-        <div id="global_chart_received_by_kind"></div>
-    </div>
-    <div class="chart_float">
-        <h2>Damage emit by opponent ( full file )</h2>
-        <div id="global_chart_emit_by_enemy"></div>
-    </div>
-    <div class="chart_float">
-        <h2>Damage received by opponent ( full file )</h2>
-        <div id="global_chart_received_by_enemy"></div>
-    </div>
-
-    <div class="chart_float">
-        <h2>Heal emit by ally ( full file )</h2>
-        <div id="global_chart_emit_by_ally"></div>
-    </div>
-    <div class="chart_float">
-        <h2>Heal received by ally ( full file )</h2>
-        <div id="global_chart_received_by_ally"></div>
+    <div id="param">
+        <input type="number" value="30" id="time-between"> secondes between fight <br/>
+        <input type="number" value="30" id="minimum-time"> secondes minimum length <br/>
     </div>
 
     <div>
-        <h2>Fight list</h2>
-        <select id="fight_list">
-        </select>
-<    </div>
+        <h2>Fight list <select id="fight_list"></select></h2>
+    </div>
+
+</div>
+
+<div id="container">
+
 
     <div class="full-time">
         <h2>Damage received</h2>

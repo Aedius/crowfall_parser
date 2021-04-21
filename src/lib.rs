@@ -36,13 +36,13 @@ pub struct Fight{
 }
 
 #[wasm_bindgen]
-pub fn parse(contents: &str, time_between: i64) -> JsValue {
-    let to_export = parse_rust(contents, time_between);
+pub fn parse(contents: &str, time_between: i64, minimum_time: i64) -> JsValue {
+    let to_export = parse_rust(contents, time_between, minimum_time);
 
     JsValue::from_serde(&to_export).unwrap()
 }
 
-fn parse_rust(contents: &str, time_between: i64) -> ExportedData {
+fn parse_rust(contents: &str, time_between: i64, minimum_time: i64) -> ExportedData {
     let re_event = Regex::new("([-0-9T:\\.]+Z).*Event=\\[(.*)\\]").unwrap();
 
     let mut data = Data {
@@ -78,7 +78,7 @@ fn parse_rust(contents: &str, time_between: i64) -> ExportedData {
     let ( dps_stats, _) = stats_dps(&data.dps, None, None);
     let ( heal_stats, _) = stats_heal(&data.heal, None, None);
 
-    let fight_timers = split_in_fight(date_list, time_between);
+    let fight_timers = split_in_fight(date_list, time_between, minimum_time);
     let mut fight = vec![];
 
     for timer in fight_timers {
@@ -168,10 +168,25 @@ mod tests {
         let mut contents = String::new();
         buf_reader.read_to_string(&mut contents).unwrap();
 
-        let calc = parse_rust(contents.as_str(), 30);
+        let calc = parse_rust(contents.as_str(), 30, 0);
 
         assert_eq!(calc.errors.len(), 0);
-        assert_eq!(calc.fights.len(), 17);
+        assert_eq!(calc.fights.len(), 13);
+
+        println!("{:?}", calc)
+    }
+
+    #[test]
+    fn assert_parse_with_minimum() {
+        let file = File::open("./fixtures/file1.txt").unwrap();
+        let mut buf_reader = BufReader::new(file);
+        let mut contents = String::new();
+        buf_reader.read_to_string(&mut contents).unwrap();
+
+        let calc = parse_rust(contents.as_str(), 30, 30);
+
+        assert_eq!(calc.errors.len(), 0);
+        assert_eq!(calc.fights.len(), 7);
 
         println!("{:?}", calc)
     }
